@@ -1,0 +1,309 @@
+@startuml
+' ------------ Optik (optional) -------------
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+hide circle
+
+' ==========================================
+' =============   DOMAIN   ==================
+' ==========================================
+package "domain" {
+  class Kunde <<entity>> {
+    +kundeId : Long
+    +name : String
+    +adresse : String
+    +email : String
+    +telefon : String
+
+    +aktualisiereKontakt(adresse:String, email:String, telefon:String) : void
+    +istKontaktGueltig() : boolean
+  }
+
+ class Kurs <<entity>> {
+    +kursId : Long
+    +titel : String
+    +beschreibung : String
+    +preis : BigDecimal
+
+    +aktualisiereDetails(titel:String, beschreibung:String, preis:BigDecimal) : void
+    +addTermin(termin: Kurstermin) : void
+    +removeTermin(terminId: Long) : void
+  }
+
+ class Kurstermin <<entity>> {
+    +terminId : Long
+    +datum : LocalDate
+    +uhrzeitStart : LocalDateTime
+    +uhrzeitEnde : LocalDateTime
+
+    +verschiebe(neuesDatum:LocalDate, start:LocalDateTime, ende:LocalDateTime) : void
+    +istVergangen() : boolean
+  }
+
+  class Anmeldung <<entity>> {
+    +anmeldungId : Long
+    +datum : LocalDate
+    +status : Anmeldestatus
+
+    +bestaetigen() : void
+    +stornieren(grund:String="") : void
+    +istStornierbar(heute:LocalDate=LocalDate.now()) : boolean
+  }
+
+  class Rechnung <<entity>> {
+    +rechnungId : Long
+    +datum : LocalDate
+    +betrag : BigDecimal
+    +status : Rechnungsstatus
+
+    +offenerBetrag() : BigDecimal
+    +markiereAlsBezahlt() : void
+    +storniere(grund:String="") : void
+    +istUeberfaellig(heute:LocalDate=LocalDate.now()) : boolean
+  }
+
+  class Zahlung <<entity>> {
+    +zahlungId : Long
+    +datum : LocalDate
+    +betrag : BigDecimal
+    +zahlungsart : Zahlungsart
+
+    +istGueltig() : boolean
+  }
+
+  class Mahnung <<entity>> {
+    +mahnungId : Long
+    +datum : LocalDate
+    +betrag : BigDecimal
+    +status : Mahnungsstatus
+    +stufe : int
+
+    +naechsteStufe() : void
+    +istFaellig(heute:LocalDate=LocalDate.now()) : boolean
+  }
+
+  enum Anmeldestatus {
+    OFFEN
+    BESTAETIGT
+    STORNIERT
+  }
+
+  enum Rechnungsstatus {
+    OFFEN
+    TEILWEISE
+    BEGLICHEN
+    UEBERFAELLIG
+    STORNIERT
+  }
+
+  enum Zahlungsart {
+    UEBERWEISUNG
+    KREDITKARTE
+    PAYPAL
+    BAR
+  }
+
+  enum Mahnungsstatus {
+    ANGELEGT
+    VERSENDET
+    BEZAHLT
+    STORNIERT
+  }
+  }
+
+' Beziehungen im Fachmodell
+Kurs "1" o-- "0..*" Kurstermin : hat >
+Kunde "1" <-- "0..*" Anmeldung : meldet sich an >
+Kurstermin "1" <-- "0..*" Anmeldung : beinhaltet >
+Kunde "1" <-- "0..*" Rechnung : erhält >
+Rechnung "1" <-- "0..*" Zahlung : begleicht >
+Rechnung "1" <-- "0..*" Mahnung : erzeugt >
+
+' ==========================================
+' ============  REPOSITORIES  ==============
+' ==========================================
+package "repositories" {
+  interface KundeRepository <<Repository>> {
+    +findById(id:Long) : Optional<Kunde>
+    +findByEmail(email:String) : Optional<Kunde>
+    +save(k:Kunde) : Kunde
+    +search(q:String, page:int=0, size:int=20) : List<Kunde>
+  }
+
+  interface KursRepository <<Repository>> {
+    +findById(id:Long) : Optional<Kurs>
+    +save(k:Kurs) : Kurs
+    +findAll(page:int=0, size:int=20) : List<Kurs>
+  }
+
+  interface KursterminRepository <<Repository>> {
+    +findById(id:Long) : Optional<Kurstermin>
+    +findByKurs(kursId:Long) : List<Kurstermin>
+    +save(t:Kurstermin) : Kurstermin
+    +deleteById(id:Long) : void
+  }
+
+  interface AnmeldungRepository <<Repository>> {
+    +findById(id:Long) : Optional<Anmeldung>
+    +findByTermin(terminId:Long) : List<Anmeldung>
+    +findByKunde(kundeId:Long) : List<Anmeldung>
+    +save(a:Anmeldung) : Anmeldung
+  }
+
+  interface RechnungRepository <<Repository>> {
+    +findById(id:Long) : Optional<Rechnung>
+    +findOffeneByKunde(kundeId:Long) : List<Rechnung>
+    +save(r:Rechnung) : Rechnung
+  }
+
+  interface ZahlungRepository <<Repository>> {
+    +save(z:Zahlung) : Zahlung
+    +findByRechnung(rechnungId:Long) : List<Zahlung>
+  }
+
+  interface MahnungRepository <<Repository>> {
+    +save(m:Mahnung) : Mahnung
+    +findByRechnung(rechnungId:Long) : List<Mahnung>
+    +findFaellige(heute:LocalDate) : List<Mahnung>
+  }
+}
+
+' ==========================================
+' ==============  SERVICES  ================
+' ==========================================
+package "services" {
+  class KursService <<Service>> {
+    -kursRepo : KursRepository
+    -terminRepo : KursterminRepository
+
+    +createKurs(titel:String, beschr:String, preis:BigDecimal) : Kurs
+    +updateKurs(kursId:Long, titel:String, beschr:String, preis:BigDecimal) : Kurs
+    +planeTermin(kursId:Long, datum:LocalDate, start:LocalDateTime, ende:LocalDateTime) : Kurstermin
+    +verschiebeTermin(terminId:Long, neuesDatum:LocalDate, start:LocalDateTime, ende:LocalDateTime) : Kurstermin
+    +loescheTermin(terminId:Long) : void
+  }
+
+  class AnmeldeService <<Service>> {
+    -kundeRepo : KundeRepository
+    -terminRepo : KursterminRepository
+    -anmeldungRepo : AnmeldungRepository
+
+    +anmelden(kundeId:Long, terminId:Long) : Anmeldung
+    +stornieren(anmeldungId:Long, grund:String="") : Anmeldung
+    +teilnehmerListe(terminId:Long) : List<Kunde>
+  }
+
+  class RechnungsService <<Service>> {
+    -rechnungRepo : RechnungRepository
+    -anmeldungRepo : AnmeldungRepository
+
+    +erstelleRechnung(anmeldungId:Long, betrag:BigDecimal) : Rechnung
+    +offenerBetrag(rechnungId:Long) : BigDecimal
+    +storniereRechnung(rechnungId:Long, grund:String="") : Rechnung
+    +markiereAlsBezahlt(rechnungId:Long) : Rechnung
+  }
+
+  class ZahlungsService <<Service>> {
+    -zahlungRepo : ZahlungRepository
+    -rechnungRepo : RechnungRepository
+
+    +verbuchen(rechnungId:Long, betrag:BigDecimal, datum:LocalDate, art:Zahlungsart) : Zahlung
+    +zahlungenZuRechnung(rechnungId:Long) : List<Zahlung>
+  }
+
+  class MahnungsService <<Service>> {
+    -mahnungRepo : MahnungRepository
+    -rechnungRepo : RechnungRepository
+
+    +pruefeUeberfaellige(heute:LocalDate=LocalDate.now()) : List<Rechnung>
+    +erstelleMahnung(rechnungId:Long) : Mahnung
+    +erhoeheMahnstufe(mahnungId:Long) : Mahnung
+  }
+
+  class BenachrichtigungsService <<Service>> {
+    +sendeAnmeldeBestaetigung(kunde:Kunde, anmeldung:Anmeldung) : void
+    +sendeRechnung(kunde:Kunde, rechnung:Rechnung) : void
+    +sendeMahnung(kunde:Kunde, mahnung:Mahnung) : void
+  }
+}
+
+' Service ↔ Repository Abhängigkeiten
+KursService ..> KursRepository
+KursService ..> KursterminRepository
+AnmeldeService ..> KundeRepository
+AnmeldeService ..> KursterminRepository
+AnmeldeService ..> AnmeldungRepository
+RechnungsService ..> RechnungRepository
+RechnungsService ..> AnmeldungRepository
+ZahlungsService ..> ZahlungRepository
+ZahlungsService ..> RechnungRepository
+MahnungsService ..> MahnungRepository
+MahnungsService ..> RechnungRepository
+BenachrichtigungsService ..> Kunde
+BenachrichtigungsService ..> Anmeldung
+BenachrichtigungsService ..> Rechnung
+BenachrichtigungsService ..> Mahnung
+
+' ==========================================
+' ============== CONTROLLER ================
+' ==========================================
+package "controllers (REST/ORDS)" {
+  class KundeController <<Controller>> {
+    +create(body:Kunde) : Kunde
+    +getById(id:Long) : Kunde
+    +search(q:String, page:int, size:int) : List<Kunde>
+    +update(id:Long, body:Kunde) : Kunde
+  }
+
+  class KursController <<Controller>> {
+    +create(body:Kurs) : Kurs
+    +getById(id:Long) : Kurs
+    +list(page:int, size:int) : List<Kurs>
+    +update(id:Long, body:Kurs) : Kurs
+  }
+
+  class TerminController <<Controller>> {
+    +planen(kursId:Long, datum:LocalDate, start:LocalDateTime, ende:LocalDateTime) : Kurstermin
+    +verschieben(terminId:Long, datum:LocalDate, start:LocalDateTime, ende:LocalDateTime) : Kurstermin
+    +loeschen(terminId:Long) : void
+    +listeByKurs(kursId:Long) : List<Kurstermin>
+  }
+
+  class AnmeldungController <<Controller>> {
+    +anmelden(kundeId:Long, terminId:Long) : Anmeldung
+    +stornieren(anmeldungId:Long, grund:String="") : Anmeldung
+    +teilnehmer(terminId:Long) : List<Kunde>
+  }
+
+  class RechnungController <<Controller>> {
+    +erstellen(anmeldungId:Long, betrag:BigDecimal) : Rechnung
+    +offenerBetrag(rechnungId:Long) : BigDecimal
+    +stornieren(rechnungId:Long, grund:String="") : Rechnung
+    +alsBezahltMarkieren(rechnungId:Long) : Rechnung
+  }
+
+  class ZahlungController <<Controller>> {
+    +verbuchen(rechnungId:Long, betrag:BigDecimal, datum:LocalDate, art:Zahlungsart) : Zahlung
+    +liste(rechnungId:Long) : List<Zahlung>
+  }
+
+  class MahnungController <<Controller>> {
+    +pruefen() : List<Rechnung>
+    +erstellen(rechnungId:Long) : Mahnung
+    +naechsteStufe(mahnungId:Long) : Mahnung
+  }
+}
+
+' Controller ↔ Service
+KundeController ..> AnmeldeService
+KundeController ..> RechnungsService
+KundeController ..> ZahlungsService
+KursController ..> KursService
+TerminController ..> KursService
+AnmeldungController ..> AnmeldeService
+RechnungController ..> RechnungsService
+ZahlungController ..> ZahlungsService
+MahnungController ..> MahnungsService
+
+' Controller benutzt Domain-Objekte als DTOs (vereinfachte Annahme)
+@enduml
