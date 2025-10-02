@@ -1,0 +1,128 @@
+@startuml
+title Use-Case-Diagramm – Seminar- & Kursverwaltungssystem
+
+left to right direction
+skinparam usecaseBorderColor #666
+skinparam usecaseBackgroundColor #eef2f7
+skinparam packageStyle rectangle
+skinparam actorStyle awesome
+
+' === Akteure ===
+actor "Teilnehmer" as Teilnehmer
+actor "Ansprechpartner\n(Firmenkunde)" as Ansprechpartner
+actor "Sachbearbeiter\n(Backoffice)" as Backoffice
+actor "Kursmanager" as Kursmanager
+actor "Buchhaltung" as Buchhaltung
+actor "Dozent/Trainer" as Dozent
+actor "System\n(WordPress)" as WP
+actor "System\n(LLM/Ollama)" as LLM
+actor "System\n(E-Mail-Gateway)" as MailSys
+actor "System\n(ORDS-API)" as ORDS
+actor "Python-Service" as PySvc
+
+' === Pakete / Module ===
+package "Kunden- & Teilnehmerverwaltung" {
+  usecase "Firma anlegen/bearbeiten/löschen" as UC_Firma
+  usecase "Ansprechpartner verwalten" as UC_AP
+  usecase "Teilnehmer verwalten" as UC_Teilnehmer
+  usecase "Teilnehmerstatus pflegen" as UC_TNStatus
+}
+
+package "Kurse & Termine" {
+  usecase "Kurs anlegen/bearbeiten/löschen" as UC_Kurs
+  usecase "Kurstermine planen" as UC_Termine
+  usecase "Seminaragenda verknüpfen" as UC_Agenda
+}
+
+package "Angebote & Rechnungen" {
+  usecase "Angebot erstellen" as UC_Angebot
+  usecase "Angebot versenden" as UC_AngebotSend
+  usecase "Angebot annehmen/ablehnen" as UC_AngebotStatus
+  usecase "Rechnung erstellen" as UC_Rechnung
+  usecase "Rechnung versenden" as UC_RechnungSend
+}
+
+package "Zahlungen & Mahnwesen" {
+  usecase "Zahlung erfassen" as UC_Zahlung
+  usecase "Kontoauszug\nprüfen & auto. Abgleich" as UC_AutoMatch
+  usecase "Mahnung erstellen/versenden" as UC_Mahnung
+}
+
+package "Benachrichtigungen" {
+  usecase "Anmeldebestätigung senden" as UC_Bestaetigung
+  usecase "Kurs-Erinnerungen senden" as UC_Reminder
+  usecase "Statusmeldungen/E-Mails" as UC_StatusMail
+}
+
+package "Kursabschluss" {
+  usecase "Feedback erfassen/auswerten" as UC_Feedback
+  usecase "Zertifikat erzeugen" as UC_Zertifikat
+  usecase "Zertifikat versenden" as UC_ZertifikatSend
+  usecase "Statistiken/Dashboard" as UC_Statistik
+  usecase "Werbung für Folgeangebote" as UC_FolgeWerbung
+}
+
+package "Schnittstellen" {
+  usecase "REST-Endpunkte über ORDS bereitstellen" as UC_ORDS
+  usecase "Python-Service ausführen\n(LLM/Automatisierung)" as UC_Py
+  usecase "Webseite veröffentlichen\n(Kursangebot/Anmeldung)" as UC_WP
+  usecase "Eingehende E-Mails verarbeiten" as UC_MailIn
+  usecase "Autom. Mail-Antworten\n(LLM)" as UC_MailLLM
+}
+
+' === Beziehungen Akteure -> Use Cases ===
+Ansprechpartner --> UC_WP : Kursangebot ansehen\n& anmelden
+Teilnehmer --> UC_WP : Online anmelden
+Teilnehmer --> UC_Feedback
+Teilnehmer --> UC_Zertifikat : Zertifikat erhalten
+Dozent --> UC_Termine : Termine abstimmen
+Dozent --> UC_Feedback : Feedback einsehen (optional)
+
+Kursmanager --> UC_Kurs
+Kursmanager --> UC_Termine
+Kursmanager --> UC_Agenda
+Kursmanager --> UC_Bestaetigung
+Kursmanager --> UC_Reminder
+
+Backoffice --> UC_Firma
+Backoffice --> UC_AP
+Backoffice --> UC_Teilnehmer
+Backoffice --> UC_TNStatus
+Backoffice --> UC_Angebot
+Backoffice --> UC_AngebotSend
+Backoffice --> UC_AngebotStatus
+Backoffice --> UC_Rechnung
+Backoffice --> UC_RechnungSend
+Backoffice --> UC_StatusMail
+
+Buchhaltung --> UC_Zahlung
+Buchhaltung --> UC_AutoMatch
+Buchhaltung --> UC_Mahnung
+Buchhaltung --> UC_Statistik
+
+' Systeme / Automatisierung
+WP --> UC_WP
+LLM --> UC_MailLLM
+MailSys --> UC_MailIn
+ORDS --> UC_ORDS
+PySvc --> UC_Py
+
+' === Include / Extend-Beziehungen ===
+UC_Rechnung .> UC_AngebotStatus : <<include>>\n(nach Annahme)
+UC_AutoMatch .> UC_Zahlung : <<extend>>\n(automatischer Abgleich)
+UC_Mahnung .> UC_Rechnung : <<include>>\n(offen/überfällig)
+UC_ZertifikatSend .> UC_Zertifikat : <<include>>
+UC_Reminder .> UC_Termine : <<include>>
+UC_Bestaetigung .> UC_WP : <<include>>
+UC_FolgeWerbung .> UC_Statistik : <<extend>>\n(z. B. Segmentierung)
+UC_MailLLM .> UC_MailIn : <<include>>
+
+' === Daten-/Objektbezüge (locker semantisch) ===
+note right of UC_Agenda
+  Bezieht sich auf Tabelle\n"seminaragenda" (DB).
+end note
+note bottom of UC_TNStatus
+  Verwendet "teilnehmer_status".
+end note
+
+@enduml
