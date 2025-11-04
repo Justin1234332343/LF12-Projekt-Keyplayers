@@ -18,7 +18,6 @@ services:
       - "5500:5500"
     volumes:
       - oracle23aifree_data:/opt/oracle/oradata
-      # Neu: Idempotentes Startup-SQL (läuft bei JEDEM Start)
       - ./infra/oracle-db/sql-scripts/startup:/opt/oracle/scripts/startup:ro
     networks: [ords-net]
 
