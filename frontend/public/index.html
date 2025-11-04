@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Seminar & Kursverwaltung – Preview</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<header class="site-header">
+  <div class="brand">
+    <div class="logo">SK</div>
+    <div class="brand-text">
+      <div class="title">Seminar & Kurs</div>
+      <div class="subtitle">Verwaltungssystem</div>
+    </div>
+  </div>
+
+  <nav class="nav">
+    <a href="#features">Funktionen</a>
+    <a href="#wie">So funktioniert’s</a>
+    <a href="#faq">FAQ</a>
+  </nav>
+
+  <button id="loginBtn" class="btn btn-primary">Login</button>
+</header>
+
+<main>
+  <section class="hero">
+    <div class="hero-text">
+      <span class="badge">Projekt-Preview · ohne Backend</span>
+      <h1>Seminare & Kurse stressfrei planen</h1>
+      <p>Diese erste Seite ist statisch und vermittelt schon echtes Website-Feeling.
+        In der nächsten Iteration binden wir Auth & API an.</p>
+
+      <div class="hero-actions">
+        <a class="btn btn-primary" href="#features">Features ansehen</a>
+        <button class="btn" id="demoLoginBtn">Demo-Login öffnen</button>
+      </div>
+
+      <ul class="ticks">
+        <li>Responsives UI</li>
+        <li>Barrierearm gedacht</li>
+        <li>Dark-Mode-ready</li>
+      </ul>
+    </div>
+
+    <div class="hero-mock">
+      <div class="mock-window">
+        <div class="mock-toolbar">
+          <div class="mock-title"></div>
+          <div class="mock-dots"></div>
+        </div>
+        <div class="mock-body">
+          <aside class="mock-col">
+            <div></div><div></div><div></div><div></div>
+          </aside>
+          <section class="mock-main">
+            <div class="bar"></div>
+            <div class="card"></div>
+            <div class="card"></div>
+          </section>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="features" class="section">
+    <h2>Kernfunktionen (Preview)</h2>
+    <p>Platzhalter für spätere, echte Daten. Dient der Navigation & dem Layout.</p>
+    <div class="grid">
+      <article class="feature"><span class="num">1</span><h3>Kursübersicht</h3><p>Überblick über laufende & kommende Seminare.</p></article>
+      <article class="feature"><span class="num">2</span><h3>Teilnehmerverwaltung</h3><p>Anmeldungen, Wartelisten, Anwesenheit.</p></article>
+      <article class="feature"><span class="num">3</span><h3>Terminplanung</h3><p>Kalender-Feeling mit Dozenten & Räumen.</p></article>
+      <article class="feature"><span class="num">4</span><h3>Rollen & Rechte</h3><p>Admin/Dozent/Teilnehmer – sauber getrennt.</p></article>
+      <article class="feature"><span class="num">5</span><h3>Rechnungen</h3><p>Spätere Anbindung an Rechnungs-DB.</p></article>
+      <article class="feature"><span class="num">6</span><h3>Berichte</h3><p>Export & Auswertung (CSV/PDF).</p></article>
+    </div>
+  </section>
+
+  <section id="wie" class="section alt">
+    <h2>So geht’s weiter</h2>
+    <ol class="steps">
+      <li><strong>UI finalisieren</strong> (Farben, Logo, Copy)</li>
+      <li><strong>Login anbinden</strong> (Session/Token)</li>
+      <li><strong>APIs integrieren</strong> (Kurse/Teilnehmer)</li>
+      <li><strong>Testing & Deploy</strong> (Docker Compose)</li>
+    </ol>
+  </section>
+
+  <section id="faq" class="section">
+    <h2>FAQ</h2>
+    <details class="faq"><summary>Ist das schon funktional?</summary><p>Nein, rein statisch; dient als Grundgerüst.</p></details>
+    <details class="faq"><summary>Wo ist der Login?</summary><p>Der Button oben rechts öffnet aktuell nur einen Demo-Dialog.</p></details>
+    <details class="faq"><summary>Wie wird angebunden?</summary><p>Frontend spricht später per REST mit ORDS/Python-Backend.</p></details>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <span>© <span id="year"></span> Seminar & Kursverwaltung • Preview</span>
+  <nav><a href="#">Impressum</a><a href="#">Datenschutz</a></nav>
+</footer>
+
+<!-- Demo-Login Modal -->
+<dialog id="loginModal" class="modal">
+  <form method="dialog" class="modal-card" id="loginForm">
+    <header>
+      <h3>Login</h3>
+      <button value="close" class="icon-btn" aria-label="Schließen">✕</button>
+    </header>
+    <label>E-Mail<input type="email" required placeholder="name@example.com" /></label>
+    <label>Passwort<input type="password" required placeholder="••••••••" /></label>
+    <button class="btn btn-primary" type="submit">Einloggen</button>
+    <p class="muted">Noch kein Konto? <span class="disabled">Registrierung folgt</span></p>
+  </form>
+</dialog>
+
+<script src="app.js"></script>
+</body>
+</html>
