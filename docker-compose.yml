@@ -1,0 +1,25 @@
+version: "3.9"
+services:
+  frontend:
+    build: ./frontend
+    image: frontend:0.1
+    container_name: frontend
+    ports:
+      - "8080:80"       # falls du Variante B nutzt: "8080:8080"
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /var/run
+      - /var/cache/nginx
+    labels:
+      org.opencontainers.image.title: "Seminar & Kursverwaltung – Frontend"
+      org.opencontainers.image.version: "0.1"
+      org.opencontainers.image.description: "Statisches Preview-Frontend (ohne Backend)"
+# Später einfach ergänzen:
+#  api:
+#    build: ./api
+#    ports: ["8000:8000"]
+#  ords:
+#    image: ords:latest
+#  oracle:
+#    image: gvenzl/oracle-free:latest
