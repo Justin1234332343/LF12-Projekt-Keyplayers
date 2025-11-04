@@ -20,10 +20,8 @@ services:
       - "5500:5500"
     volumes:
       - oracle23aifree_data:/opt/oracle/oradata
-      # einmalige/automatische Erstkonfiguration (User anlegen etc.)
-      - ./db-init/setup:/opt/oracle/scripts/setup:ro
-      # bei jedem Start ausführen (optional, z.B. Grants/Views aktualisieren)
-      - ./db-init/startup:/opt/oracle/scripts/startup:ro
+      # dein Projekt-interner SQL-Init-Ordner (wird beim ersten Start ausgeführt)
+      - ./infra/oracle-db/sql-scripts/db-nutzer-erstellen.sql:/opt/oracle/scripts/setup/01-db-nutzer-erstellen.sql:ro
     networks: [ords-net]
 
   oracle-ords:
@@ -32,16 +30,12 @@ services:
     depends_on:
       - oracle-23ai-free
     environment:
-      # exakt wie in deinem docker run:
       - DBHOST=oracle-23ai-free
       - DBPORT=1521
       - DBSERVICENAME=freepdb1
       - ORACLE_PWD=MeinSicheresPasswort123
-      # (optional) CORS per Env – falls das Image es mapped (sonst siehe Kommandos unten)
-      # - ORDS_CONFIG_SECURITY_CORS_ENABLED=true
-      # - ORDS_CONFIG_SECURITY_CORS_ALLOWED_ORIGINS=http://localhost:8080
     ports:
-      - "8181:8080"   # Host:Container (wie bei dir)
+      - "8181:8080"
     volumes:
       - ords-config:/etc/ords/config
     networks: [ords-net]
@@ -54,7 +48,6 @@ services:
       - "8080:80"
     depends_on:
       - oracle-ords
-    # statische Seite braucht kein Netz, aber wir hängen sie ins selbe für Tests
     networks: [ords-net]
     read_only: true
     tmpfs:
