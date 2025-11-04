@@ -1,5 +1,3 @@
-version: "3.9"
-
 networks:
   ords-net:
     name: ords-net
@@ -20,8 +18,8 @@ services:
       - "5500:5500"
     volumes:
       - oracle23aifree_data:/opt/oracle/oradata
-      # dein Projekt-interner SQL-Init-Ordner (wird beim ersten Start ausgeführt)
-      - ./infra/oracle-db/sql-scripts/db-nutzer-erstellen.sql:/opt/oracle/scripts/setup/01-db-nutzer-erstellen.sql:ro
+      # Neu: Idempotentes Startup-SQL (läuft bei JEDEM Start)
+      - ./infra/oracle-db/sql-scripts/startup:/opt/oracle/scripts/startup:ro
     networks: [ords-net]
 
   oracle-ords:
