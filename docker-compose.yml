@@ -1,25 +1,52 @@
-version: "3.9"
+networks:
+  ords-net:
+    name: ords-net
+    driver: bridge
+
+volumes:
+  oracle23aifree_data:
+  ords-config:
+
 services:
+  oracle-23ai-free:
+    image: container-registry.oracle.com/database/free:latest
+    container_name: oracle-23ai-free
+    environment:
+      - ORACLE_PWD=MeinSicheresPasswort123
+    ports:
+      - "1521:1521"
+      - "5500:5500"
+    volumes:
+      - oracle23aifree_data:/opt/oracle/oradata
+      - ./infra/oracle-db/sql-scripts/startup:/opt/oracle/scripts/startup:ro
+    networks: [ords-net]
+
+  oracle-ords:
+    image: container-registry.oracle.com/database/ords:latest
+    container_name: oracle-ords
+    depends_on:
+      - oracle-23ai-free
+    environment:
+      - DBHOST=oracle-23ai-free
+      - DBPORT=1521
+      - DBSERVICENAME=freepdb1
+      - ORACLE_PWD=MeinSicheresPasswort123
+    ports:
+      - "8181:8080"
+    volumes:
+      - ords-config:/etc/ords/config
+    networks: [ords-net]
+
   frontend:
     build: ./frontend
     image: frontend:0.1
     container_name: frontend
     ports:
-      - "8080:80"       # falls du Variante B nutzt: "8080:8080"
-    restart: unless-stopped
+      - "8080:80"
+    depends_on:
+      - oracle-ords
+    networks: [ords-net]
     read_only: true
     tmpfs:
       - /var/run
       - /var/cache/nginx
-    labels:
-      org.opencontainers.image.title: "Seminar & Kursverwaltung – Frontend"
-      org.opencontainers.image.version: "0.1"
-      org.opencontainers.image.description: "Statisches Preview-Frontend (ohne Backend)"
-# Später einfach ergänzen:
-#  api:
-#    build: ./api
-#    ports: ["8000:8000"]
-#  ords:
-#    image: ords:latest
-#  oracle:
-#    image: gvenzl/oracle-free:latest
