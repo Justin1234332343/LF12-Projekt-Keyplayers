@@ -2,6 +2,7 @@ networks:
   ords-net:
     name: ords-net
     driver: bridge
+    external: true
 
 volumes:
   oracle23aifree_data:
