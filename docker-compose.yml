@@ -21,10 +21,11 @@ services:
       - oracle23aifree_data:/opt/oracle/oradata
       - ./infra/oracle-db/sql-scripts/startup:/opt/oracle/scripts/startup:ro
     networks: [ords-net]
+    restart: unless-stopped
 
-  oracle-ords:
+  ords:
     image: container-registry.oracle.com/database/ords:latest
-    container_name: oracle-ords
+    container_name: ords
     depends_on:
       - oracle-23ai-free
     environment:
@@ -37,6 +38,13 @@ services:
     volumes:
       - ords-config:/etc/ords/config
     networks: [ords-net]
+    healthcheck:
+      test: [ "CMD", "curl", "-fsS", "http://localhost:8080/ords/" ]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    restart: unless-stopped
 
   frontend:
     build: ./frontend
@@ -45,9 +53,38 @@ services:
     ports:
       - "8080:80"
     depends_on:
-      - oracle-ords
+      - ords
     networks: [ords-net]
     read_only: true
     tmpfs:
       - /var/run
       - /var/cache/nginx
+    restart: unless-stopped
+
+  python-backend:
+    build:
+      context: ./backend_python
+      dockerfile: Dockerfile
+    image: lf12/python-backend:latest
+    container_name: python-backend
+    environment:
+      # ORDS im gleichen Compose-Netz ansprechen:
+      - ORDS_BASE_URL=http://ords:8080/ords/lf12
+      # CORS für dein Frontend (anpassen, z.B. http://localhost:5173)
+      - CORS_ORIGINS=http://localhost:8181
+      # Optional für Logging/Debug
+      - LOG_LEVEL=info
+    ports:
+      - "8000:8000"       # lokal erreichbar
+    networks:
+      - ords-net
+    depends_on:
+      ords:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
