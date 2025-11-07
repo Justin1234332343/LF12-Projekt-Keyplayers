@@ -1,4 +1,4 @@
-@startuml
+@startuml Klassendiagramm
 ' ------------ Optik (optional) -------------
 skinparam shadowing false
 skinparam classAttributeIconSize 0

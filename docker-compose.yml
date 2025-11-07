@@ -39,15 +39,17 @@ services:
     networks: [ords-net]
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend/react_frontend  # Pfad zu deiner Dockerfile / Next App
+      dockerfile: Dockerfile
     image: frontend:0.1
     container_name: frontend
     ports:
-      - "8080:80"
+      - "3000:3000"  # Host-Port:Container-Port
     depends_on:
       - oracle-ords
     networks: [ords-net]
-    read_only: true
-    tmpfs:
-      - /var/run
-      - /var/cache/nginx
+    environment:
+      NODE_ENV: production 
+      PORT: 3000
+
