@@ -1,7 +1,7 @@
 const year = document.getElementById("year");
 if (year) year.textContent = new Date().getFullYear();
-
 const loginBtn = document.getElementById("loginBtn");
+
 const demoLoginBtn = document.getElementById("demoLoginBtn");
 const loginModal = document.getElementById("loginModal");
 const loginForm = document.getElementById("loginForm");
