@@ -1,0 +1,140 @@
+@startuml
+hide circle
+skinparam linetype ortho
+
+' ===============================
+' ENTITÄTEN
+' ===============================
+
+entity Firma {
+  +firma_id <<PK>>
+  --
+  firma_name
+  rechnungsadresse
+  kommentar
+  email_rechnungsversand
+}
+
+entity Ansprechpartner {
+  +ansprechpartner_id <<PK>>
+  --
+  vorname
+  nachname
+  email
+  telefonnummer
+  positionFirma
+}
+
+entity Teilnehmer {
+  +teilnehmerid <<PK>>
+  --
+  vorname
+  nachname
+  email <<UNIQUE>>
+}
+
+entity Teilnehmer_Status {
+  +status_id <<PK>>
+  --
+  status_name
+}
+
+entity Kurs {
+  +kurs_id <<PK>>
+  --
+  kurs_name
+  kurs_typ
+  kurs_ort
+  kurs_datum_beginn
+  kurs_datum_ende
+  kurs_zeitraum
+  kurs_tage
+  kommentar
+}
+
+entity Kurs_Termin {
+  +terminid <<PK>>
+  --
+  datum
+  uhrzeit_start
+  uhrzeit_ende
+}
+
+entity Angebot {
+  +angebot_id <<PK>>
+  --
+  angebot_datum
+  angebot_betrag
+  angebot_status
+}
+
+entity Rechnung {
+  +rechnungsnummer <<PK>>
+  --
+  rechnungsdatum
+  zahltermin
+  betrag_brutto
+  rechnung_status
+}
+
+entity Zahlung {
+  +zahlung_id <<PK>>
+  --
+  zahlungsdatum
+  betrag
+  zahlungsmethode
+}
+
+entity Seminaragenda {
+  +seminaragenda_id <<PK>>
+  --
+  titel
+  inhalt
+  erstellungsdatum
+  seminaragenda_version
+}
+
+entity Benachrichtigung {
+  +benachrichtigung_id <<PK>>
+  --
+  betreff
+  inhalt
+  versanddatum
+  benachrichtigung_status
+}
+
+entity Dozent {
+  +dozent_id <<PK>>
+  --
+  vorname
+  nachname
+  email
+  qualifikation
+}
+
+' ===============================
+' BEZIEHUNGEN MIT 1..N NOTATION
+' ===============================
+
+Firma "1" -- "N" Ansprechpartner : hat
+Firma "1" -- "N" Teilnehmer : beschäftigt
+Teilnehmer "N" -- "1" Teilnehmer_Status : hat_Status
+
+Kurs "1" -- "N" Kurs_Termin : besteht_aus
+Kurs "N" -- "1" Seminaragenda : verwendet
+
+Firma "1" -- "N" Angebot : erhält
+Kurs "1" -- "N" Angebot : betrifft
+
+Angebot "1" -- "0..N" Rechnung : führt_zu
+Firma "1" -- "N" Rechnung : erhält
+Kurs "1" -- "0..N" Rechnung : wird_abgerechnet_für
+
+Rechnung "1" -- "N" Zahlung : wird_beglichen_durch
+
+Benachrichtigung "N" -- "1" Firma : an_Firma
+Benachrichtigung "N" -- "1" Teilnehmer : an_Teilnehmer
+
+Dozent "1" -- "N" Kurs : hält
+
+@enduml
