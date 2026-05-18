@@ -48,6 +48,7 @@ services:
     environment:
       - ORDS_BASE_URL=http://ords:8080/ords/projekt_lf12
       - OLLAMA_BASE_URL=http://ollama:11434
+      - OLLAMA_MODEL=mistral
       - ORDS_TIMEOUT=10
     depends_on:
       - ords

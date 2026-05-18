@@ -3,6 +3,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from ords_service import build_ords_service
+from ollama_service import build_ollama_service
 
 app = FastAPI(title="LF12 Keyplayers API", version="1.0.0")
 
@@ -14,6 +15,7 @@ app.add_middleware(
 )
 
 ords = build_ords_service()
+ollama = build_ollama_service()
 
 
 # ------------------------------------------------------------------ SCHEMAS
@@ -224,3 +226,102 @@ def list_benachrichtigungen():
 @app.post("/benachrichtigungen/", status_code=201)
 def create_benachrichtigung(body: BenachrichtigungRequest):
     return ords.create_benachrichtigung(body.model_dump())
+
+
+# ------------------------------------------------------------------- OLLAMA
+
+class AngebotTextRequest(BaseModel):
+    firma_name: str
+    kurs_name: str
+    kurs_typ: str
+    kurs_datum_beginn: str
+    kurs_datum_ende: str
+    betrag: float
+
+
+class BenachrichtigungTextRequest(BaseModel):
+    empfaenger_name: str
+    betreff_typ: str
+    kontext: Dict[str, Any]
+
+
+class KursBeschreibungRequest(BaseModel):
+    kurs_name: str
+    kurs_typ: str
+    kurs_tage: int
+    themen_stichworte: Optional[str] = None
+
+
+class MahnungRequest(BaseModel):
+    firma_name: str
+    rechnungsnummer: int
+    betrag: float
+    zahltermin: str
+    mahnstufe: Optional[int] = 1
+
+
+class ChatRequest(BaseModel):
+    messages: List[Dict[str, str]]
+    model: Optional[str] = None
+
+
+@app.get("/ollama/models")
+def list_ollama_models():
+    return {"models": ollama.list_models()}
+
+
+@app.get("/ollama/health")
+def ollama_health():
+    return {"available": ollama.is_available(), "model": ollama.model}
+
+
+@app.post("/ollama/angebot-text")
+def generate_angebot_text(body: AngebotTextRequest):
+    text = ollama.generate_angebot_text(
+        firma_name=body.firma_name,
+        kurs_name=body.kurs_name,
+        kurs_typ=body.kurs_typ,
+        kurs_datum_beginn=body.kurs_datum_beginn,
+        kurs_datum_ende=body.kurs_datum_ende,
+        betrag=body.betrag,
+    )
+    return {"text": text}
+
+
+@app.post("/ollama/benachrichtigung-text")
+def generate_benachrichtigung_text(body: BenachrichtigungTextRequest):
+    text = ollama.generate_benachrichtigung(
+        empfaenger_name=body.empfaenger_name,
+        betreff_typ=body.betreff_typ,
+        kontext=body.kontext,
+    )
+    return {"text": text}
+
+
+@app.post("/ollama/kurs-beschreibung")
+def generate_kurs_beschreibung(body: KursBeschreibungRequest):
+    text = ollama.generate_kurs_beschreibung(
+        kurs_name=body.kurs_name,
+        kurs_typ=body.kurs_typ,
+        kurs_tage=body.kurs_tage,
+        themen_stichworte=body.themen_stichworte,
+    )
+    return {"text": text}
+
+
+@app.post("/ollama/mahnung")
+def generate_mahnung(body: MahnungRequest):
+    text = ollama.generate_mahnung(
+        firma_name=body.firma_name,
+        rechnungsnummer=body.rechnungsnummer,
+        betrag=body.betrag,
+        zahltermin=body.zahltermin,
+        mahnstufe=body.mahnstufe,
+    )
+    return {"text": text}
+
+
+@app.post("/ollama/chat")
+def chat(body: ChatRequest):
+    antwort = ollama.chat(messages=body.messages, model=body.model)
+    return {"response": antwort}
