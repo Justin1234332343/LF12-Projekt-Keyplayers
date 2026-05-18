@@ -2,7 +2,6 @@ networks:
   ords-net:
     name: ords-net
     driver: bridge
-    external: true
 
 volumes:
   oracle23aifree_data:
@@ -55,12 +54,15 @@ services:
     networks: [ords-net]
 
   ollama:
-    image: ollama/ollama:latest
+    build: ./infra/ollama
+    image: ollama-lf12:0.1
     container_name: ollama
     ports:
       - "11434:11434"
     volumes:
       - ollama-data:/root/.ollama
+    environment:
+      - OLLAMA_MODEL=mistral
     networks: [ords-net]
 
   frontend:
