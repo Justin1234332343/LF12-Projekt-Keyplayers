@@ -7,6 +7,7 @@ networks:
 volumes:
   oracle23aifree_data:
   ords-config:
+  ollama-data:
 
 services:
   oracle-23ai-free:
@@ -38,6 +39,29 @@ services:
       - ords-config:/etc/ords/config
     networks: [ords-net]
 
+  backend:
+    build: ./backend_python
+    image: backend:0.1
+    container_name: backend
+    ports:
+      - "8000:8000"
+    environment:
+      - ORDS_BASE_URL=http://ords:8080/ords/projekt_lf12
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - ORDS_TIMEOUT=10
+    depends_on:
+      - ords
+    networks: [ords-net]
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    networks: [ords-net]
+
   frontend:
     build: ./frontend
     image: frontend:0.1
@@ -45,7 +69,7 @@ services:
     ports:
       - "8080:80"
     depends_on:
-      - ords
+      - backend
     networks: [ords-net]
     read_only: true
     tmpfs:

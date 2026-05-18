@@ -1,118 +1,160 @@
-# backend_python/ords_service.py
-from typing import Any, Dict, List, Optional
 import os
+from typing import Any, Dict, List, Optional
 import requests
 from fastapi import HTTPException, status
 
+
 class OrdsService:
-    """
-    Kapselt REST-Calls zu ORDS.
-    Nutzt ein requests.Session-Objekt (Keep-Alive, weniger Overhead).
-    """
-    def __init__(
-            self,
-            base_url: str,
-            api_key: Optional[str] = None,
-            timeout: float = 5.0,
-    ) -> None:
+    """Kapselt alle REST-Calls zu ORDS (auto-REST + custom Modul lf12.v1)."""
+
+    def __init__(self, base_url: str, timeout: float = 10.0) -> None:
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
         self.session = requests.Session()
-        self.session.headers.update({"Accept": "application/json"})
-        if api_key:
-            # Beispiel für Header-basierten Key; bei Bedarf anpassen
-            self.session.headers.update({"Authorization": f"Bearer {api_key}"})
+        self.session.headers.update({"Accept": "application/json", "Content-Type": "application/json"})
 
-    def _full(self, path: str) -> str:
-        path = path.lstrip("/")
-        return f"{self.base_url}/{path}"
+    def _url(self, path: str) -> str:
+        return f"{self.base_url}/{path.lstrip('/')}"
 
     def _handle(self, resp: requests.Response) -> Any:
         try:
             resp.raise_for_status()
         except requests.HTTPError as e:
-            # ORDS-Fehler schön nach vorne reichen
-            detail = {
-                "status_code": resp.status_code,
-                "reason": resp.reason,
-                "text": resp.text[:4000],  # Log/Antwort kürzen
-            }
             raise HTTPException(
-                status_code=resp.status_code if 400 <= resp.status_code < 600 else status.HTTP_502_BAD_GATEWAY,
-                detail={"error": "ORDS error", **detail},
+                status_code=resp.status_code if 400 <= resp.status_code < 600 else 502,
+                detail={"error": "ORDS error", "status_code": resp.status_code, "text": resp.text[:2000]},
             ) from e
         try:
             return resp.json()
         except ValueError:
             return resp.text
 
-    # ---------- WF_COUNTRIES (READ) ----------
-    def list_countries(self, params: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
-        url = self._full("wf_countries/")
-        try:
-            resp = self.session.get(url, params=params, timeout=self.timeout)
-            data = self._handle(resp)
-            # ORDS liefert oft {"items": [...], "hasMore": ...}
-            if isinstance(data, dict) and "items" in data:
-                return data["items"]
-            if isinstance(data, list):
-                return data
-            return [data]
-        except requests.RequestException as e:
-            raise HTTPException(
-                status_code=status.HTTP_502_BAD_GATEWAY,
-                detail=f"ORDS nicht erreichbar: {e}",
-            ) from e
+    def _items(self, data: Any) -> List[Dict]:
+        if isinstance(data, dict) and "items" in data:
+            return data["items"]
+        if isinstance(data, list):
+            return data
+        return [data]
 
-    def get_country(self, country_id: str) -> Dict[str, Any]:
-        url = self._full(f"wf_countries/{country_id}")
+    def _get(self, path: str, params: Optional[Dict] = None) -> Any:
         try:
-            resp = self.session.get(url, timeout=self.timeout)
-            data = self._handle(resp)
-            # Manche ORDS-Handler liefern bei Einzelobjekt direkt das Dict, andere in "items"
-            if isinstance(data, dict) and "items" in data and data["items"]:
-                return data["items"][0]
-            if isinstance(data, dict):
-                return data
-            raise HTTPException(status_code=404, detail="Country nicht gefunden")
-        except requests.RequestException as e:
-            raise HTTPException(
-                status_code=status.HTTP_502_BAD_GATEWAY,
-                detail=f"ORDS nicht erreichbar: {e}",
-            ) from e
-
-    # ---------- (Optional) CREATE/UPDATE/DELETE ----------
-    def create_country(self, payload: Dict[str, Any]) -> Dict[str, Any]:
-        url = self._full("wf_countries/")
-        try:
-            resp = self.session.post(url, json=payload, timeout=self.timeout)
-            return self._handle(resp)
+            return self._handle(self.session.get(self._url(path), params=params, timeout=self.timeout))
         except requests.RequestException as e:
             raise HTTPException(status_code=502, detail=f"ORDS nicht erreichbar: {e}") from e
 
-    def update_country(self, country_id: str, payload: Dict[str, Any]) -> Dict[str, Any]:
-        url = self._full(f"wf_countries/{country_id}")
+    def _post(self, path: str, payload: Dict) -> Any:
         try:
-            resp = self.session.put(url, json=payload, timeout=self.timeout)
-            return self._handle(resp)
+            return self._handle(self.session.post(self._url(path), json=payload, timeout=self.timeout))
         except requests.RequestException as e:
             raise HTTPException(status_code=502, detail=f"ORDS nicht erreichbar: {e}") from e
 
-    def delete_country(self, country_id: str) -> Dict[str, Any]:
-        url = self._full(f"wf_countries/{country_id}")
+    def _put(self, path: str, payload: Dict) -> Any:
         try:
-            resp = self.session.delete(url, timeout=self.timeout)
-            return self._handle(resp)
+            return self._handle(self.session.put(self._url(path), json=payload, timeout=self.timeout))
         except requests.RequestException as e:
             raise HTTPException(status_code=502, detail=f"ORDS nicht erreichbar: {e}") from e
+
+    def _delete(self, path: str) -> Any:
+        try:
+            return self._handle(self.session.delete(self._url(path), timeout=self.timeout))
+        except requests.RequestException as e:
+            raise HTTPException(status_code=502, detail=f"ORDS nicht erreichbar: {e}") from e
+
+    # ------------------------------------------------------------------ FIRMA
+    def list_firmen(self) -> List[Dict]:
+        return self._items(self._get("firma/"))
+
+    def get_firma(self, firma_id: int) -> Dict:
+        return self._get(f"firma/{firma_id}")
+
+    def create_firma_komplett(self, payload: Dict) -> Dict:
+        return self._post("api/v1/firmen/komplett/", payload)
+
+    def update_firma(self, firma_id: int, payload: Dict) -> Dict:
+        return self._put(f"firma/{firma_id}", payload)
+
+    def delete_firma(self, firma_id: int) -> Any:
+        return self._delete(f"firma/{firma_id}")
+
+    # --------------------------------------------------------- ANSPRECHPARTNER
+    def list_ansprechpartner(self, firma_id: Optional[int] = None) -> List[Dict]:
+        params = {"q": f'{{"firma_id":{firma_id}}}'} if firma_id else None
+        return self._items(self._get("ansprechpartner/", params=params))
+
+    # ------------------------------------------------------------------ KURS
+    def list_kurse(self) -> List[Dict]:
+        return self._items(self._get("kurs/"))
+
+    def get_kurs(self, kurs_id: int) -> Dict:
+        return self._get(f"kurs/{kurs_id}")
+
+    def get_kurs_detail(self, kurs_id: int) -> Dict:
+        return self._get(f"api/v1/kurse/{kurs_id}/detail")
+
+    def create_kurs_komplett(self, payload: Dict) -> Dict:
+        return self._post("api/v1/kurse/komplett/", payload)
+
+    def update_kurs(self, kurs_id: int, payload: Dict) -> Dict:
+        return self._put(f"kurs/{kurs_id}", payload)
+
+    def delete_kurs(self, kurs_id: int) -> Any:
+        return self._delete(f"kurs/{kurs_id}")
+
+    # --------------------------------------------------------------- TEILNEHMER
+    def list_teilnehmer(self) -> List[Dict]:
+        return self._items(self._get("teilnehmer/"))
+
+    def get_teilnehmer(self, teilnehmer_id: int) -> Dict:
+        return self._get(f"teilnehmer/{teilnehmer_id}")
+
+    def create_teilnehmer(self, payload: Dict) -> Dict:
+        return self._post("teilnehmer/", payload)
+
+    def update_teilnehmer_status(self, teilnehmer_id: int, status_id: int) -> Dict:
+        return self._put(f"api/v1/teilnehmer/{teilnehmer_id}/status", {"status_id": status_id})
+
+    # ----------------------------------------------------------------- ANGEBOT
+    def list_angebote(self) -> List[Dict]:
+        return self._items(self._get("angebot/"))
+
+    def get_angebot(self, angebot_id: int) -> Dict:
+        return self._get(f"angebot/{angebot_id}")
+
+    def create_angebot(self, payload: Dict) -> Dict:
+        return self._post("angebot/", payload)
+
+    def update_angebot_status(self, angebot_id: int, neuer_status: str, zahltermin_tage: int = 30) -> Dict:
+        return self._put(
+            f"api/v1/angebote/{angebot_id}/status",
+            {"status": neuer_status, "zahltermin_tage": zahltermin_tage},
+        )
+
+    # --------------------------------------------------------------- RECHNUNG
+    def list_rechnungen(self) -> List[Dict]:
+        return self._items(self._get("rechnung/"))
+
+    def get_rechnung(self, rechnungsnummer: int) -> Dict:
+        return self._get(f"rechnung/{rechnungsnummer}")
+
+    def zahlung_erfassen(self, rechnungsnummer: int, betrag: float, zahlungsmethode: str) -> Dict:
+        return self._post(
+            f"api/v1/rechnungen/{rechnungsnummer}/zahlung/",
+            {"betrag": betrag, "zahlungsmethode": zahlungsmethode},
+        )
+
+    # --------------------------------------------------------- BENACHRICHTIGUNG
+    def list_benachrichtigungen(self) -> List[Dict]:
+        return self._items(self._get("benachrichtigung/"))
+
+    def create_benachrichtigung(self, payload: Dict) -> Dict:
+        return self._post("benachrichtigung/", payload)
+
+    # --------------------------------------------------------- TEILNEHMER STATUS
+    def list_teilnehmer_status(self) -> List[Dict]:
+        return self._items(self._get("teilnehmer_status/"))
 
 
 def build_ords_service() -> OrdsService:
-    """
-    Baut den Service aus ENV-Variablen.
-    Fallbacks sind so gewählt, dass dein Setup sofort läuft.
-    """
-    base = os.getenv("ORDS_BASE", "http://localhost:8181/ords/lf12")
-    api_key = os.getenv("ORDS_API_KEY")  # falls du Header-Auth nutzt
-    timeout = float(os.getenv("ORDS_TIMEOUT", "5"))
-    return OrdsService(base_url=base, api_key=api_key, timeout=timeout)
+    base = os.getenv("ORDS_BASE_URL", "http://ords:8080/ords/projekt_lf12")
+    timeout = float(os.getenv("ORDS_TIMEOUT", "10"))
+    return OrdsService(base_url=base, timeout=timeout)
