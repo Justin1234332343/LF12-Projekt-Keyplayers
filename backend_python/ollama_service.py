@@ -32,6 +32,14 @@ class OllamaService:
         except requests.RequestException as e:
             raise HTTPException(status_code=502, detail=f"Ollama nicht erreichbar: {e}") from e
 
+    def _check_model_ready(self, r: requests.Response) -> None:
+        if r.status_code == 404:
+            raise HTTPException(
+                status_code=503,
+                detail=f"Modell '{self.model}' wird noch geladen. Bitte kurz warten und erneut versuchen.",
+            )
+        r.raise_for_status()
+
     def generate(self, prompt: str, model: Optional[str] = None) -> str:
         payload = {
             "model": model or self.model,
@@ -40,8 +48,10 @@ class OllamaService:
         }
         try:
             r = self.session.post(self._url("/api/generate"), json=payload, timeout=self.timeout)
-            r.raise_for_status()
+            self._check_model_ready(r)
             return r.json().get("response", "").strip()
+        except HTTPException:
+            raise
         except requests.RequestException as e:
             raise HTTPException(status_code=502, detail=f"Ollama Fehler: {e}") from e
 
@@ -53,9 +63,11 @@ class OllamaService:
         }
         try:
             r = self.session.post(self._url("/api/chat"), json=payload, timeout=self.timeout)
-            r.raise_for_status()
+            self._check_model_ready(r)
             data = r.json()
             return (data.get("message") or {}).get("content", "").strip()
+        except HTTPException:
+            raise
         except requests.RequestException as e:
             raise HTTPException(status_code=502, detail=f"Ollama Fehler: {e}") from e
 

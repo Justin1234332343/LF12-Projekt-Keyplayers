@@ -9,7 +9,11 @@ async function apiFetch(path, opts = {}) {
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new Error(err.detail || res.statusText);
+    const detail = err.detail;
+    const msg = Array.isArray(detail)
+      ? detail.map(d => `${d.loc?.at(-1) ?? "Feld"}: ${d.msg}`).join(" · ")
+      : typeof detail === "string" ? detail : JSON.stringify(detail);
+    throw new Error(msg || res.statusText);
   }
   if (res.status === 204) return null;
   return res.json();
@@ -354,7 +358,7 @@ window.teilnehmerStatusModal = function(id, name) {
     <div class="form-grid">
       <label>Neuer Status
         <select id="newStatus">
-          ${statusList.map(s => `<option value="${s.status_id}">${s.status_name}</option>`).join("")}
+          ${statusList.map(s => `<option value="${s.status_id}">${s.status_name ?? "–"}</option>`).join("")}
         </select>
       </label>
       <div class="btn-row">
