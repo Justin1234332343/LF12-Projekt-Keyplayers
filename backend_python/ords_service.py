@@ -1,4 +1,5 @@
 import os
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 import requests
 from fastapi import HTTPException, status
@@ -20,9 +21,14 @@ class OrdsService:
         try:
             resp.raise_for_status()
         except requests.HTTPError as e:
+            try:
+                body = resp.json()
+                msg = body.get("message") or body.get("error") or resp.text[:300]
+            except Exception:
+                msg = resp.text[:300]
             raise HTTPException(
                 status_code=resp.status_code if 400 <= resp.status_code < 600 else 502,
-                detail={"error": "ORDS error", "status_code": resp.status_code, "text": resp.text[:2000]},
+                detail=f"ORDS {resp.status_code}: {msg}",
             ) from e
         try:
             return resp.json()
@@ -60,6 +66,18 @@ class OrdsService:
         except requests.RequestException as e:
             raise HTTPException(status_code=502, detail=f"ORDS nicht erreichbar: {e}") from e
 
+    @staticmethod
+    def _to_iso(s: Optional[str]) -> Optional[str]:
+        """Convert any date/datetime string to ISO-8601 with Z suffix (required by ORDS)."""
+        if not s:
+            return None
+        s = s.replace(" ", "T")
+        if len(s) == 10:  # bare YYYY-MM-DD
+            s += "T00:00:00"
+        if not s.endswith("Z") and "+" not in s[10:]:
+            s += "Z"
+        return s
+
     # ------------------------------------------------------------------ FIRMA
     def list_firmen(self) -> List[Dict]:
         return self._items(self._get("firma/"))
@@ -68,7 +86,22 @@ class OrdsService:
         return self._get(f"firma/{firma_id}")
 
     def create_firma_komplett(self, payload: Dict) -> Dict:
-        return self._post("api/v1/firmen/komplett/", payload)
+        firma = self._post("firma/", {k: v for k, v in {
+            "firma_name": payload.get("firma_name"),
+            "rechnungsadresse": payload.get("rechnungsadresse"),
+            "email_rechnungsversand": payload.get("email_rechnungsversand"),
+            "kommentar": payload.get("kommentar"),
+        }.items() if v is not None})
+        firma_id = firma.get("firma_id")
+        self._post("ansprechpartner/", {k: v for k, v in {
+            "firma_id": firma_id,
+            "vorname": payload.get("ap_vorname"),
+            "nachname": payload.get("ap_nachname"),
+            "email": payload.get("ap_email"),
+            "telefonnummer": payload.get("ap_telefon"),
+            "positionfirma": payload.get("ap_position"),
+        }.items() if v is not None})
+        return {"firma_id": firma_id}
 
     def update_firma(self, firma_id: int, payload: Dict) -> Dict:
         return self._put(f"firma/{firma_id}", payload)
@@ -92,7 +125,27 @@ class OrdsService:
         return self._get(f"api/v1/kurse/{kurs_id}/detail")
 
     def create_kurs_komplett(self, payload: Dict) -> Dict:
-        return self._post("api/v1/kurse/komplett/", payload)
+        termine = payload.get("termine", [])
+        kurs = self._post("kurs/", {k: v for k, v in {
+            "kurs_name": payload.get("kurs_name"),
+            "kurs_typ": payload.get("kurs_typ"),
+            "kurs_ort": payload.get("kurs_ort") or "online (MS Teams)",
+            "kurs_datum_beginn": self._to_iso(payload.get("kurs_datum_beginn")),
+            "kurs_datum_ende": self._to_iso(payload.get("kurs_datum_ende")),
+            "kurs_zeitraum": payload.get("kurs_zeitraum"),
+            "kurs_tage": payload.get("kurs_tage"),
+            "kommentar": payload.get("kommentar"),
+            "seminaragenda_id": payload.get("seminaragenda_id"),
+        }.items() if v is not None})
+        kurs_id = kurs.get("kurs_id")
+        for t in termine:
+            self._post("kurs_termine/", {k: v for k, v in {
+                "kurs_id": kurs_id,
+                "datum": self._to_iso(t.get("datum")),
+                "uhrzeit_start": self._to_iso(t.get("start")),
+                "uhrzeit_ende": self._to_iso(t.get("ende")),
+            }.items() if v is not None})
+        return {"kurs_id": kurs_id}
 
     def update_kurs(self, kurs_id: int, payload: Dict) -> Dict:
         return self._put(f"kurs/{kurs_id}", payload)
@@ -108,7 +161,7 @@ class OrdsService:
         return self._get(f"teilnehmer/{teilnehmer_id}")
 
     def create_teilnehmer(self, payload: Dict) -> Dict:
-        return self._post("teilnehmer/", payload)
+        return self._post("teilnehmer/", {"status_id": 1, **payload})
 
     def update_teilnehmer_status(self, teilnehmer_id: int, status_id: int) -> Dict:
         return self._put(f"api/v1/teilnehmer/{teilnehmer_id}/status", {"status_id": status_id})
@@ -121,7 +174,8 @@ class OrdsService:
         return self._get(f"angebot/{angebot_id}")
 
     def create_angebot(self, payload: Dict) -> Dict:
-        return self._post("angebot/", payload)
+        now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        return self._post("angebot/", {"angebot_datum": now, "angebot_status": "offen", **payload})
 
     def update_angebot_status(self, angebot_id: int, neuer_status: str, zahltermin_tage: int = 30) -> Dict:
         return self._put(
@@ -147,7 +201,8 @@ class OrdsService:
         return self._items(self._get("benachrichtigung/"))
 
     def create_benachrichtigung(self, payload: Dict) -> Dict:
-        return self._post("benachrichtigung/", payload)
+        now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        return self._post("benachrichtigung/", {"versanddatum": now, **payload})
 
     # --------------------------------------------------------- TEILNEHMER STATUS
     def list_teilnehmer_status(self) -> List[Dict]:
