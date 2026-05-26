@@ -26,6 +26,26 @@ Beim ersten Start lädt Ollama das Mistral-Modell (~4 GB) automatisch herunter. 
 | http://localhost:8000/docs | Backend API (Swagger) |
 | http://localhost:8181/ords/projekt_lf12/ | ORDS REST API |
 
+## Troubleshooting
+
+### ORDS-Endpunkte antworten mit 404
+
+Die Custom-Endpunkte unter `/ords/projekt_lf12/api/v1/...` werden manchmal beim ersten Start nicht registriert. Skript manuell ausführen:
+
+```bash
+docker exec oracle-23ai-free sqlplus \
+  "sys/MeinSicheresPasswort123@localhost:1521/freepdb1 as sysdba" \
+  "@/opt/oracle/scripts/startup/40-ords_modules.sql"
+```
+
+Danach ORDS neu starten:
+
+```bash
+docker compose restart ords
+```
+
+---
+
 ## Entwicklung
 
 ### Backend (Python)
