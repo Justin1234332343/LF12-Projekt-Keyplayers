@@ -1,309 +1,241 @@
-@startuml
-' ------------ Optik (optional) -------------
+@startuml Klassendiagramm
+title Klassendiagramm - LF12 Keyplayers (Python FastAPI Backend)
+
 skinparam shadowing false
 skinparam classAttributeIconSize 0
 hide circle
 
 ' ==========================================
-' =============   DOMAIN   ==================
+' ============   API LAYER   ===============
 ' ==========================================
-package "domain" {
-  class Kunde <<entity>> {
-    +kundeId : Long
-    +name : String
-    +adresse : String
-    +email : String
-    +telefon : String
-
-    +aktualisiereKontakt(adresse:String, email:String, telefon:String) : void
-    +istKontaktGueltig() : boolean
-  }
-
- class Kurs <<entity>> {
-    +kursId : Long
-    +titel : String
-    +beschreibung : String
-    +preis : BigDecimal
-
-    +aktualisiereDetails(titel:String, beschreibung:String, preis:BigDecimal) : void
-    +addTermin(termin: Kurstermin) : void
-    +removeTermin(terminId: Long) : void
-  }
-
- class Kurstermin <<entity>> {
-    +terminId : Long
-    +datum : LocalDate
-    +uhrzeitStart : LocalDateTime
-    +uhrzeitEnde : LocalDateTime
-
-    +verschiebe(neuesDatum:LocalDate, start:LocalDateTime, ende:LocalDateTime) : void
-    +istVergangen() : boolean
-  }
-
-  class Anmeldung <<entity>> {
-    +anmeldungId : Long
-    +datum : LocalDate
-    +status : Anmeldestatus
-
-    +bestaetigen() : void
-    +stornieren(grund:String="") : void
-    +istStornierbar(heute:LocalDate=LocalDate.now()) : boolean
-  }
-
-  class Rechnung <<entity>> {
-    +rechnungId : Long
-    +datum : LocalDate
-    +betrag : BigDecimal
-    +status : Rechnungsstatus
-
-    +offenerBetrag() : BigDecimal
-    +markiereAlsBezahlt() : void
-    +storniere(grund:String="") : void
-    +istUeberfaellig(heute:LocalDate=LocalDate.now()) : boolean
-  }
-
-  class Zahlung <<entity>> {
-    +zahlungId : Long
-    +datum : LocalDate
-    +betrag : BigDecimal
-    +zahlungsart : Zahlungsart
-
-    +istGueltig() : boolean
-  }
-
-  class Mahnung <<entity>> {
-    +mahnungId : Long
-    +datum : LocalDate
-    +betrag : BigDecimal
-    +status : Mahnungsstatus
-    +stufe : int
-
-    +naechsteStufe() : void
-    +istFaellig(heute:LocalDate=LocalDate.now()) : boolean
-  }
-
-  enum Anmeldestatus {
-    OFFEN
-    BESTAETIGT
-    STORNIERT
-  }
-
-  enum Rechnungsstatus {
-    OFFEN
-    TEILWEISE
-    BEGLICHEN
-    UEBERFAELLIG
-    STORNIERT
-  }
-
-  enum Zahlungsart {
-    UEBERWEISUNG
-    KREDITKARTE
-    PAYPAL
-    BAR
-  }
-
-  enum Mahnungsstatus {
-    ANGELEGT
-    VERSENDET
-    BEZAHLT
-    STORNIERT
-  }
-  }
-
-' Beziehungen im Fachmodell
-Kurs "1" o-- "0..*" Kurstermin : hat >
-Kunde "1" <-- "0..*" Anmeldung : meldet sich an >
-Kurstermin "1" <-- "0..*" Anmeldung : beinhaltet >
-Kunde "1" <-- "0..*" Rechnung : erhält >
-Rechnung "1" <-- "0..*" Zahlung : begleicht >
-Rechnung "1" <-- "0..*" Mahnung : erzeugt >
-
-' ==========================================
-' ============  REPOSITORIES  ==============
-' ==========================================
-package "repositories" {
-  interface KundeRepository <<Repository>> {
-    +findById(id:Long) : Optional<Kunde>
-    +findByEmail(email:String) : Optional<Kunde>
-    +save(k:Kunde) : Kunde
-    +search(q:String, page:int=0, size:int=20) : List<Kunde>
-  }
-
-  interface KursRepository <<Repository>> {
-    +findById(id:Long) : Optional<Kurs>
-    +save(k:Kurs) : Kurs
-    +findAll(page:int=0, size:int=20) : List<Kurs>
-  }
-
-  interface KursterminRepository <<Repository>> {
-    +findById(id:Long) : Optional<Kurstermin>
-    +findByKurs(kursId:Long) : List<Kurstermin>
-    +save(t:Kurstermin) : Kurstermin
-    +deleteById(id:Long) : void
-  }
-
-  interface AnmeldungRepository <<Repository>> {
-    +findById(id:Long) : Optional<Anmeldung>
-    +findByTermin(terminId:Long) : List<Anmeldung>
-    +findByKunde(kundeId:Long) : List<Anmeldung>
-    +save(a:Anmeldung) : Anmeldung
-  }
-
-  interface RechnungRepository <<Repository>> {
-    +findById(id:Long) : Optional<Rechnung>
-    +findOffeneByKunde(kundeId:Long) : List<Rechnung>
-    +save(r:Rechnung) : Rechnung
-  }
-
-  interface ZahlungRepository <<Repository>> {
-    +save(z:Zahlung) : Zahlung
-    +findByRechnung(rechnungId:Long) : List<Zahlung>
-  }
-
-  interface MahnungRepository <<Repository>> {
-    +save(m:Mahnung) : Mahnung
-    +findByRechnung(rechnungId:Long) : List<Mahnung>
-    +findFaellige(heute:LocalDate) : List<Mahnung>
+package "main (FastAPI)" {
+  class FastAPIApp <<Application>> {
+    + app : FastAPI
+    - ords : OrdsService
+    - ollama : OllamaService
+    --
+    + health() : dict
+    .. Firmen ..
+    + list_firmen() : list
+    + get_firma(firma_id: int) : dict
+    + create_firma_komplett(body: FirmaKomplettRequest) : dict
+    + update_firma(firma_id: int, body: dict) : dict
+    + delete_firma(firma_id: int) : None
+    .. Kurse ..
+    + list_kurse() : list
+    + get_kurs(kurs_id: int) : dict
+    + get_kurs_detail(kurs_id: int) : dict
+    + create_kurs_komplett(body: KursKomplettRequest) : dict
+    .. Teilnehmer ..
+    + list_teilnehmer() : list
+    + create_teilnehmer(body: TeilnehmerRequest) : dict
+    + update_teilnehmer_status(id: int, body: TeilnehmerStatusRequest) : dict
+    .. Angebote ..
+    + list_angebote() : list
+    + create_angebot(body: AngebotRequest) : dict
+    + update_angebot_status(id: int, body: AngebotStatusRequest) : dict
+    .. Rechnungen ..
+    + list_rechnungen() : list
+    + zahlung_erfassen(nr: int, body: ZahlungRequest) : dict
+    .. Ollama ..
+    + ollama_health() : dict
+    + ollama_angebot_text(body) : dict
+    + ollama_kurs_beschreibung(body) : dict
+    + ollama_mahnung(body) : dict
   }
 }
 
 ' ==========================================
-' ==============  SERVICES  ================
+' ==========  PYDANTIC SCHEMAS  ============
 ' ==========================================
-package "services" {
-  class KursService <<Service>> {
-    -kursRepo : KursRepository
-    -terminRepo : KursterminRepository
-
-    +createKurs(titel:String, beschr:String, preis:BigDecimal) : Kurs
-    +updateKurs(kursId:Long, titel:String, beschr:String, preis:BigDecimal) : Kurs
-    +planeTermin(kursId:Long, datum:LocalDate, start:LocalDateTime, ende:LocalDateTime) : Kurstermin
-    +verschiebeTermin(terminId:Long, neuesDatum:LocalDate, start:LocalDateTime, ende:LocalDateTime) : Kurstermin
-    +loescheTermin(terminId:Long) : void
+package "Schemas (Pydantic)" {
+  class FirmaKomplettRequest <<DTO>> {
+    + firma_name : str
+    + rechnungsadresse : str
+    + email_rechnungsversand : str
+    + kommentar : str?
+    + ap_vorname : str
+    + ap_nachname : str
+    + ap_email : str
+    + ap_telefon : str?
+    + ap_position : str?
   }
 
-  class AnmeldeService <<Service>> {
-    -kundeRepo : KundeRepository
-    -terminRepo : KursterminRepository
-    -anmeldungRepo : AnmeldungRepository
-
-    +anmelden(kundeId:Long, terminId:Long) : Anmeldung
-    +stornieren(anmeldungId:Long, grund:String="") : Anmeldung
-    +teilnehmerListe(terminId:Long) : List<Kunde>
+  class KursKomplettRequest <<DTO>> {
+    + kurs_name : str
+    + kurs_typ : str
+    + kurs_ort : str?
+    + kurs_datum_beginn : str
+    + kurs_datum_ende : str
+    + kurs_zeitraum : str
+    + kurs_tage : int
+    + seminaragenda_id : int?
+    + termine : list[dict]
   }
 
-  class RechnungsService <<Service>> {
-    -rechnungRepo : RechnungRepository
-    -anmeldungRepo : AnmeldungRepository
-
-    +erstelleRechnung(anmeldungId:Long, betrag:BigDecimal) : Rechnung
-    +offenerBetrag(rechnungId:Long) : BigDecimal
-    +storniereRechnung(rechnungId:Long, grund:String="") : Rechnung
-    +markiereAlsBezahlt(rechnungId:Long) : Rechnung
+  class TeilnehmerRequest <<DTO>> {
+    + firma_id : int
+    + vorname : str
+    + nachname : str
+    + email : str
   }
 
-  class ZahlungsService <<Service>> {
-    -zahlungRepo : ZahlungRepository
-    -rechnungRepo : RechnungRepository
-
-    +verbuchen(rechnungId:Long, betrag:BigDecimal, datum:LocalDate, art:Zahlungsart) : Zahlung
-    +zahlungenZuRechnung(rechnungId:Long) : List<Zahlung>
+  class TeilnehmerStatusRequest <<DTO>> {
+    + status_id : int
   }
 
-  class MahnungsService <<Service>> {
-    -mahnungRepo : MahnungRepository
-    -rechnungRepo : RechnungRepository
-
-    +pruefeUeberfaellige(heute:LocalDate=LocalDate.now()) : List<Rechnung>
-    +erstelleMahnung(rechnungId:Long) : Mahnung
-    +erhoeheMahnstufe(mahnungId:Long) : Mahnung
+  class AngebotRequest <<DTO>> {
+    + firma_id : int
+    + kurs_id : int
+    + angebot_betrag : float
   }
 
-  class BenachrichtigungsService <<Service>> {
-    +sendeAnmeldeBestaetigung(kunde:Kunde, anmeldung:Anmeldung) : void
-    +sendeRechnung(kunde:Kunde, rechnung:Rechnung) : void
-    +sendeMahnung(kunde:Kunde, mahnung:Mahnung) : void
+  class AngebotStatusRequest <<DTO>> {
+    + status : str
+    + zahltermin_tage : int?
+  }
+
+  class ZahlungRequest <<DTO>> {
+    + betrag : float
+    + zahlungsmethode : str
   }
 }
 
-' Service ↔ Repository Abhängigkeiten
-KursService ..> KursRepository
-KursService ..> KursterminRepository
-AnmeldeService ..> KundeRepository
-AnmeldeService ..> KursterminRepository
-AnmeldeService ..> AnmeldungRepository
-RechnungsService ..> RechnungRepository
-RechnungsService ..> AnmeldungRepository
-ZahlungsService ..> ZahlungRepository
-ZahlungsService ..> RechnungRepository
-MahnungsService ..> MahnungRepository
-MahnungsService ..> RechnungRepository
-BenachrichtigungsService ..> Kunde
-BenachrichtigungsService ..> Anmeldung
-BenachrichtigungsService ..> Rechnung
-BenachrichtigungsService ..> Mahnung
-
 ' ==========================================
-' ============== CONTROLLER ================
+' ==========  SERVICE LAYER  ===============
 ' ==========================================
-package "controllers (REST/ORDS)" {
-  class KundeController <<Controller>> {
-    +create(body:Kunde) : Kunde
-    +getById(id:Long) : Kunde
-    +search(q:String, page:int, size:int) : List<Kunde>
-    +update(id:Long, body:Kunde) : Kunde
+package "Services" {
+  class OrdsService <<Service>> {
+    - base_url : str
+    - timeout : float
+    - session : requests.Session
+    --
+    .. internal ..
+    - _url(path: str) : str
+    - _handle(resp: Response) : Any
+    - _get(path: str, params: dict?) : Any
+    - _post(path: str, payload: dict) : Any
+    - _put(path: str, payload: dict) : Any
+    - _delete(path: str) : Any
+    .. Firmen ..
+    + list_firmen() : list
+    + get_firma(firma_id: int) : dict
+    + create_firma_komplett(payload: dict) : dict
+    + update_firma(firma_id: int, payload: dict) : dict
+    + delete_firma(firma_id: int) : None
+    + list_ansprechpartner(firma_id: int) : list
+    .. Kurse ..
+    + list_kurse() : list
+    + get_kurs(kurs_id: int) : dict
+    + get_kurs_detail(kurs_id: int) : dict
+    + create_kurs_komplett(payload: dict) : dict
+    .. Teilnehmer ..
+    + list_teilnehmer() : list
+    + create_teilnehmer(payload: dict) : dict
+    + update_teilnehmer_status(id: int, status_id: int) : dict
+    .. Angebote / Rechnungen ..
+    + list_angebote() : list
+    + create_angebot(payload: dict) : dict
+    + update_angebot_status(id: int, status: str, tage: int) : dict
+    + list_rechnungen() : list
+    + zahlung_erfassen(nr: int, betrag: float, methode: str) : dict
   }
 
-  class KursController <<Controller>> {
-    +create(body:Kurs) : Kurs
-    +getById(id:Long) : Kurs
-    +list(page:int, size:int) : List<Kurs>
-    +update(id:Long, body:Kurs) : Kurs
+  class OllamaService <<Service>> {
+    - base_url : str
+    + model : str
+    - timeout : float
+    - session : requests.Session
+    --
+    - _url(path: str) : str
+    - _check_model_ready(resp: Response) : None
+    + is_available() : bool
+    + list_models() : list[str]
+    + generate(prompt: str, model: str?) : str
+    + chat(messages: list[dict], model: str?) : str
+    .. Business Prompts ..
+    + generate_angebot_text(firma, kurs, datum, betrag) : str
+    + generate_kurs_beschreibung(name, typ, tage) : str
+    + generate_mahnung(firma, rechnung, betrag, termin, stufe) : str
+    + generate_benachrichtigung(empfaenger, typ, kontext) : str
   }
 
-  class TerminController <<Controller>> {
-    +planen(kursId:Long, datum:LocalDate, start:LocalDateTime, ende:LocalDateTime) : Kurstermin
-    +verschieben(terminId:Long, datum:LocalDate, start:LocalDateTime, ende:LocalDateTime) : Kurstermin
-    +loeschen(terminId:Long) : void
-    +listeByKurs(kursId:Long) : List<Kurstermin>
+  class "build_ords_service()" as buildOrds <<Factory>> {
+    + ORDS_BASE_URL : env
+    + ORDS_TIMEOUT : env
   }
 
-  class AnmeldungController <<Controller>> {
-    +anmelden(kundeId:Long, terminId:Long) : Anmeldung
-    +stornieren(anmeldungId:Long, grund:String="") : Anmeldung
-    +teilnehmer(terminId:Long) : List<Kunde>
-  }
-
-  class RechnungController <<Controller>> {
-    +erstellen(anmeldungId:Long, betrag:BigDecimal) : Rechnung
-    +offenerBetrag(rechnungId:Long) : BigDecimal
-    +stornieren(rechnungId:Long, grund:String="") : Rechnung
-    +alsBezahltMarkieren(rechnungId:Long) : Rechnung
-  }
-
-  class ZahlungController <<Controller>> {
-    +verbuchen(rechnungId:Long, betrag:BigDecimal, datum:LocalDate, art:Zahlungsart) : Zahlung
-    +liste(rechnungId:Long) : List<Zahlung>
-  }
-
-  class MahnungController <<Controller>> {
-    +pruefen() : List<Rechnung>
-    +erstellen(rechnungId:Long) : Mahnung
-    +naechsteStufe(mahnungId:Long) : Mahnung
+  class "build_ollama_service()" as buildOllama <<Factory>> {
+    + OLLAMA_BASE_URL : env
+    + OLLAMA_MODEL : env
+    + OLLAMA_TIMEOUT : env
   }
 }
 
-' Controller ↔ Service
-KundeController ..> AnmeldeService
-KundeController ..> RechnungsService
-KundeController ..> ZahlungsService
-KursController ..> KursService
-TerminController ..> KursService
-AnmeldungController ..> AnmeldeService
-RechnungController ..> RechnungsService
-ZahlungController ..> ZahlungsService
-MahnungController ..> MahnungsService
+' ==========================================
+' =======  EXTERNAL SYSTEMS  ===============
+' ==========================================
+package "External" {
+  class "ORDS REST API" as ORDS <<External>> {
+    .. auto-REST ..
+    GET/POST /firma/
+    GET/PUT/DELETE /firma/:id
+    GET/POST /teilnehmer/
+    GET/POST /kurs/
+    .. custom Modul lf12.v1 ..
+    POST /api/v1/firmen/komplett/
+    POST /api/v1/kurse/komplett/
+    GET  /api/v1/kurse/:id/detail
+    PUT  /api/v1/angebote/:id/status
+    POST /api/v1/rechnungen/:nr/zahlung/
+    PUT  /api/v1/teilnehmer/:id/status
+  }
 
-' Controller benutzt Domain-Objekte als DTOs (vereinfachte Annahme)
+  class "Ollama LLM" as Ollama <<External>> {
+    POST /api/generate
+    POST /api/chat
+    GET  /api/tags
+    --
+    Modell: mistral
+  }
+}
+
+' ==========================================
+' ==========  RELATIONSHIPS  ===============
+' ==========================================
+FastAPIApp ..> OrdsService : delegiert CRUD
+FastAPIApp ..> OllamaService : delegiert KI
+
+FastAPIApp ..> FirmaKomplettRequest : nutzt
+FastAPIApp ..> KursKomplettRequest : nutzt
+FastAPIApp ..> TeilnehmerRequest : nutzt
+FastAPIApp ..> TeilnehmerStatusRequest : nutzt
+FastAPIApp ..> AngebotRequest : nutzt
+FastAPIApp ..> AngebotStatusRequest : nutzt
+FastAPIApp ..> ZahlungRequest : nutzt
+
+buildOrds ..> OrdsService : << creates >>
+buildOllama ..> OllamaService : << creates >>
+
+OrdsService --> ORDS : HTTP/JSON
+OllamaService --> Ollama : HTTP/JSON
+
+note right of FastAPIApp
+  CORS: erlaubt alle Origins
+  Module-level Singletons:
+    ords, ollama
+end note
+
+note right of OrdsService
+  Fehler-Mapping:
+   - HTTPError -> HTTPException(status)
+   - ConnectionError -> 502
+end note
+
+note right of OllamaService
+  Fehler-Mapping:
+   - 404 (Modell laedt) -> 503
+   - andere Fehler -> 502
+end note
+
 @enduml
