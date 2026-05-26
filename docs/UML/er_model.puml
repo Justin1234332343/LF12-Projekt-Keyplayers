@@ -1,140 +1,186 @@
-@startuml
+@startuml ER-Modell
+title ER-Modell - LF12 Keyplayers (Oracle 23ai Schema)
+
 hide circle
 skinparam linetype ortho
 
 ' ===============================
-' ENTITÄTEN
+' STAMMDATEN
 ' ===============================
 
 entity Firma {
-  +firma_id <<PK>>
+  * firma_id : NUMBER <<PK>>
   --
-  firma_name
-  rechnungsadresse
-  kommentar
-  email_rechnungsversand
+  * firma_name : VARCHAR2(100)
+  * rechnungsadresse : VARCHAR2(400)
+  * email_rechnungsversand : VARCHAR2(100)
+    kommentar : VARCHAR2(2000)
 }
 
 entity Ansprechpartner {
-  +ansprechpartner_id <<PK>>
+  * ansprechpartner_id : NUMBER <<PK>>
   --
-  vorname
-  nachname
-  email
-  telefonnummer
-  positionFirma
-}
-
-entity Teilnehmer {
-  +teilnehmerid <<PK>>
-  --
-  vorname
-  nachname
-  email <<UNIQUE>>
+  * firma_id : NUMBER <<FK>>
+  * vorname : VARCHAR2(100)
+  * nachname : VARCHAR2(100)
+  * email : VARCHAR2(100)
+    telefonnummer : VARCHAR2(100)
+    positionFirma : VARCHAR2(100)
 }
 
 entity Teilnehmer_Status {
-  +status_id <<PK>>
+  * status_id : NUMBER <<PK>>
   --
-  status_name
+  * status_name : VARCHAR2(50) <<UNIQUE>>
+}
+
+entity Teilnehmer {
+  * teilnehmerid : NUMBER <<PK>>
+  --
+  * firma_id : NUMBER <<FK>>
+  * status_id : NUMBER <<FK>> = 1
+  * vorname : VARCHAR2(100)
+  * nachname : VARCHAR2(100)
+  * email : VARCHAR2(100) <<UNIQUE>>
+}
+
+' ===============================
+' KURSE
+' ===============================
+
+entity Seminaragenda {
+  * seminaragenda_id : NUMBER <<PK>>
+  --
+  * titel : VARCHAR2(255)
+  * inhalt : CLOB
+  * erstellungsdatum : DATE
+  * seminaragenda_version : DATE
 }
 
 entity Kurs {
-  +kurs_id <<PK>>
+  * kurs_id : NUMBER <<PK>>
   --
-  kurs_name
-  kurs_typ
-  kurs_ort
-  kurs_datum_beginn
-  kurs_datum_ende
-  kurs_zeitraum
-  kurs_tage
-  kommentar
+    seminaragenda_id : NUMBER <<FK>>
+  * kurs_name : VARCHAR2(100)
+  * kurs_typ : VARCHAR2(50) <<CHECK>>
+  * kurs_ort : VARCHAR2(100)
+  * kurs_datum_beginn : DATE
+  * kurs_datum_ende : DATE
+  * kurs_zeitraum : VARCHAR2(100)
+  * kurs_tage : NUMBER
+    kommentar : VARCHAR2(2000)
+  --
+  <<UNIQUE>> (kurs_name, beginn, ende)
 }
 
-entity Kurs_Termin {
-  +terminid <<PK>>
+entity Kurs_Termine {
+  * terminid : NUMBER <<PK>>
   --
-  datum
-  uhrzeit_start
-  uhrzeit_ende
+  * kurs_id : NUMBER <<FK>>
+  * datum : DATE
+  * uhrzeit_start : TIMESTAMP
+  * uhrzeit_ende : TIMESTAMP
 }
+
+' ===============================
+' VERTRIEB
+' ===============================
 
 entity Angebot {
-  +angebot_id <<PK>>
+  * angebot_id : NUMBER <<PK>>
   --
-  angebot_datum
-  angebot_betrag
-  angebot_status
+  * firma_id : NUMBER <<FK>>
+    kurs_id : NUMBER <<FK>>
+  * angebot_datum : DATE
+  * angebot_betrag : NUMBER(10,2)
+  * angebot_status : VARCHAR2(50) <<CHECK>>
+    angebot_pdf : BLOB
 }
 
 entity Rechnung {
-  +rechnungsnummer <<PK>>
+  * rechnungsnummer : NUMBER <<PK>>
   --
-  rechnungsdatum
-  zahltermin
-  betrag_brutto
-  rechnung_status
+  * firma_id : NUMBER <<FK>>
+    kurs_id : NUMBER <<FK>>
+    angebot_id : NUMBER <<FK>>
+  * rechnungsdatum : DATE
+  * zahltermin : DATE
+  * betrag_brutto : NUMBER(10,2) <<CHECK >= 0>>
+  * rechnung_status : VARCHAR2(50) <<CHECK>>
 }
 
 entity Zahlung {
-  +zahlung_id <<PK>>
+  * zahlung_id : NUMBER <<PK>>
   --
-  zahlungsdatum
-  betrag
-  zahlungsmethode
+  * rechnungsnummer : NUMBER <<FK>>
+  * zahlungsdatum : DATE
+  * betrag : NUMBER(10,2)
+  * zahlungsmethode : VARCHAR2(50) <<CHECK>>
 }
 
-entity Seminaragenda {
-  +seminaragenda_id <<PK>>
-  --
-  titel
-  inhalt
-  erstellungsdatum
-  seminaragenda_version
-}
+' ===============================
+' KOMMUNIKATION
+' ===============================
 
 entity Benachrichtigung {
-  +benachrichtigung_id <<PK>>
+  * benachrichtigung_id : NUMBER <<PK>>
   --
-  betreff
-  inhalt
-  versanddatum
-  benachrichtigung_status
-}
-
-entity Dozent {
-  +dozent_id <<PK>>
-  --
-  vorname
-  nachname
-  email
-  qualifikation
+  * empfaenger_id : NUMBER
+  * empfaenger_typ : VARCHAR2(50) <<CHECK>>
+  * betreff : VARCHAR2(200)
+  * inhalt : CLOB
+  * versanddatum : TIMESTAMP
+  * benachrichtigung_status : VARCHAR2(50) <<CHECK>>
 }
 
 ' ===============================
-' BEZIEHUNGEN MIT 1..N NOTATION
+' BEZIEHUNGEN
 ' ===============================
 
-Firma "1" -- "N" Ansprechpartner : hat
-Firma "1" -- "N" Teilnehmer : beschäftigt
-Teilnehmer "N" -- "1" Teilnehmer_Status : hat_Status
+Firma ||--o{ Ansprechpartner : "hat\n(CASCADE)"
+Firma ||--o{ Teilnehmer : "beschäftigt\n(CASCADE)"
+Firma ||--o{ Angebot : "erhält\n(CASCADE)"
+Firma ||--o{ Rechnung : "erhält\n(CASCADE)"
 
-Kurs "1" -- "N" Kurs_Termin : besteht_aus
-Kurs "N" -- "1" Seminaragenda : verwendet
+Teilnehmer_Status ||--o{ Teilnehmer : "klassifiziert"
 
-Firma "1" -- "N" Angebot : erhält
-Kurs "1" -- "N" Angebot : betrifft
+Seminaragenda ||--o{ Kurs : "verwendet\n(SET NULL)"
+Kurs ||--o{ Kurs_Termine : "besteht_aus\n(CASCADE)"
+Kurs ||--o{ Angebot : "betrifft\n(SET NULL)"
+Kurs ||--o{ Rechnung : "abgerechnet_für\n(SET NULL)"
 
-Angebot "1" -- "0..N" Rechnung : führt_zu
-Firma "1" -- "N" Rechnung : erhält
-Kurs "1" -- "0..N" Rechnung : wird_abgerechnet_für
+Angebot ||--o{ Rechnung : "führt_zu\n(SET NULL)"
+Rechnung ||--o{ Zahlung : "wird_beglichen\n(CASCADE)"
 
-Rechnung "1" -- "N" Zahlung : wird_beglichen_durch
+' ===============================
+' HINWEISE
+' ===============================
 
-Benachrichtigung "N" -- "1" Firma : an_Firma
-Benachrichtigung "N" -- "1" Teilnehmer : an_Teilnehmer
+note bottom of Benachrichtigung
+  Polymorpher Empfänger:
+  empfaenger_typ ∈ {'firma', 'teilnehmer'}
+  Kein FK — Auflösung in Anwendung
+end note
 
-Dozent "1" -- "N" Kurs : hält
+note right of Zahlung
+  Trigger trg_zahlungsdatum:
+  Zahlungsdatum darf nicht
+  in der Zukunft liegen
+end note
+
+note bottom of Kurs
+  kurs_typ ∈ {'Webinar', 'Präsenz'}
+end note
+
+note bottom of Angebot
+  angebot_status ∈
+   {offen, angenommen,
+    abgelehnt, storniert}
+end note
+
+note bottom of Rechnung
+  rechnung_status ∈
+   {offen, bezahlt, rückerstattet}
+end note
 
 @enduml
