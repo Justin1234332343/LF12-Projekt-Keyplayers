@@ -122,7 +122,10 @@ class OrdsService:
         return self._get(f"kurs/{kurs_id}")
 
     def get_kurs_detail(self, kurs_id: int) -> Dict:
-        return self._get(f"api/v1/kurse/{kurs_id}/detail")
+        kurs = self._get(f"kurs/{kurs_id}")
+        termine_raw = self._items(self._get("kurs_termine/", params={"q": f'{{"kurs_id":{kurs_id}}}'}))
+        kurs["termine"] = termine_raw
+        return kurs
 
     def create_kurs_komplett(self, payload: Dict) -> Dict:
         termine = payload.get("termine", [])
