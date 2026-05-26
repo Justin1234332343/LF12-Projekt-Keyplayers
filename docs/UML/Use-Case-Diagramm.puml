@@ -1,62 +1,93 @@
-@startuml
-' Sauberes Standard-Use-Case-Layout
+@startuml Use-Case-Diagramm
+title Use-Case-Diagramm - LF12 Keyplayers
+
 left to right direction
 skinparam shadowing false
 skinparam packageStyle rectangle
-skinparam linetype ortho
 skinparam actorStyle stickman
 
-actor "Besucher" as Besucher
 actor "Mitarbeiter" as Mitarbeiter
-actor "Teilnehmer" as Teilnehmer
-actor "E-Mail-Dienst" as Mail
+actor "Ollama LLM" as Ollama <<external>>
+actor "Oracle DB / ORDS" as DB <<external>>
 
-rectangle "Seminar- & Kursverwaltungssystem" {
+rectangle "Schulungs-Organisations-Tool" {
 
-  ' Öffentlicher Bereich (Landingpage)
-  usecase "Startseite anzeigen" as UC_Start
-  usecase "Funktionen anzeigen" as UC_Funktionen
-  usecase "So funktioniert's anzeigen" as UC_How
-  usecase "FAQ anzeigen" as UC_FAQ
-  usecase "Login" as UC_Login
-  usecase "Demo-Login öffnen" as UC_Demo
+  ' --- Dashboard ---
+  usecase "Dashboard anzeigen" as UC_Dashboard
 
-  ' Kernfunktionen (entspricht deiner UI-Kacheln + Exposé)
-  usecase "Kursübersicht" as UC_KursUeb
-  usecase "Kurse verwalten" as UC_Kurse
-  usecase "Teilnehmer verwalten" as UC_Teiln
-  usecase "Terminplanung" as UC_Termine
+  ' --- Firmen ---
+  usecase "Firmen auflisten" as UC_FirmenList
+  usecase "Firma anlegen\n(mit Ansprechpartner)" as UC_FirmaCreate
+  usecase "Firma bearbeiten" as UC_FirmaEdit
+  usecase "Firma löschen" as UC_FirmaDelete
 
-  usecase "Anmeldung / Umbuchung / Storno" as UC_Buchung
-  usecase "Rechnung erstellen" as UC_Rechnung
-  usecase "Zahlung verbuchen" as UC_Zahlung
-  usecase "Benachrichtigung senden" as UC_Notify
+  ' --- Kurse ---
+  usecase "Kurse auflisten" as UC_KurseList
+  usecase "Kurs anlegen\n(mit Terminen)" as UC_KursCreate
+  usecase "Kursdetails ansehen\n(Termine + Agenda)" as UC_KursDetail
 
-  ' sinnvolle Includes (kurz & typisch)
-  UC_Buchung .> UC_Notify : <<include>>
-  UC_Rechnung .> UC_Notify : <<include>>
-  UC_KursUeb .> UC_Kurse : <<include>>
+  ' --- Teilnehmer ---
+  usecase "Teilnehmer auflisten" as UC_TeilnList
+  usecase "Teilnehmer anlegen" as UC_TeilnCreate
+  usecase "Teilnehmer-Status\nändern" as UC_TeilnStatus
+
+  ' --- Angebote ---
+  usecase "Angebote auflisten" as UC_AngebotList
+  usecase "Angebot anlegen" as UC_AngebotCreate
+  usecase "Angebot annehmen\n/ ablehnen" as UC_AngebotStatus
+  usecase "Rechnung erzeugen" as UC_RechnungAuto
+
+  ' --- Rechnungen ---
+  usecase "Rechnungen auflisten" as UC_RechnungList
+  usecase "Zahlung erfassen" as UC_Zahlung
+  usecase "Rechnung als\nbezahlt markieren" as UC_RechnungBezahlt
+
+  ' --- KI ---
+  usecase "Angebotstext\ngenerieren" as UC_KIAngebot
+  usecase "Kursbeschreibung\ngenerieren" as UC_KIKurs
+  usecase "Mahnung\ngenerieren" as UC_KIMahnung
+
+  ' --- Includes (Auto-Workflows) ---
+  UC_AngebotStatus .> UC_RechnungAuto : <<include>>\n(bei "angenommen")
+  UC_Zahlung .> UC_RechnungBezahlt : <<include>>\n(wenn voll bezahlt)
 }
 
-' Akteure links/rechts wie im "normalen" Use-Case-Diagramm
-Besucher --> UC_Start
-Besucher --> UC_Funktionen
-Besucher --> UC_How
-Besucher --> UC_FAQ
-Besucher --> UC_Login
-Besucher --> UC_Demo
+' --- Mitarbeiter -> Use Cases ---
+Mitarbeiter --> UC_Dashboard
 
-Mitarbeiter --> UC_Login
-Mitarbeiter --> UC_KursUeb
-Mitarbeiter --> UC_Kurse
-Mitarbeiter --> UC_Teiln
-Mitarbeiter --> UC_Termine
-Mitarbeiter --> UC_Rechnung
+Mitarbeiter --> UC_FirmenList
+Mitarbeiter --> UC_FirmaCreate
+Mitarbeiter --> UC_FirmaEdit
+Mitarbeiter --> UC_FirmaDelete
+
+Mitarbeiter --> UC_KurseList
+Mitarbeiter --> UC_KursCreate
+Mitarbeiter --> UC_KursDetail
+
+Mitarbeiter --> UC_TeilnList
+Mitarbeiter --> UC_TeilnCreate
+Mitarbeiter --> UC_TeilnStatus
+
+Mitarbeiter --> UC_AngebotList
+Mitarbeiter --> UC_AngebotCreate
+Mitarbeiter --> UC_AngebotStatus
+
+Mitarbeiter --> UC_RechnungList
 Mitarbeiter --> UC_Zahlung
-Mitarbeiter --> UC_Notify
 
-Teilnehmer --> UC_Buchung
+Mitarbeiter --> UC_KIAngebot
+Mitarbeiter --> UC_KIKurs
+Mitarbeiter --> UC_KIMahnung
 
-Mail <-- UC_Notify
+' --- Externe Akteure ---
+UC_KIAngebot --> Ollama
+UC_KIKurs --> Ollama
+UC_KIMahnung --> Ollama
+
+UC_FirmaCreate --> DB
+UC_KursCreate --> DB
+UC_AngebotStatus --> DB
+UC_Zahlung --> DB
+UC_TeilnStatus --> DB
 
 @enduml
